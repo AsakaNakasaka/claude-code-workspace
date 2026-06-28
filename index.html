@@ -163,21 +163,22 @@
   <div class="card ctrl-card">
     <div class="lbl">📐 マスの かず</div>
     <div class="grp" id="gSize">
-      <button class="btn"    onclick="set('size',3,this)">3×3</button>
-      <button class="btn"    onclick="set('size',4,this)">4×4</button>
-      <button class="btn on" onclick="set('size',5,this)">5×5</button>
-      <button class="btn"    onclick="set('size',6,this)">6×6</button>
-      <button class="btn"    onclick="set('size',7,this)">7×7</button>
-      <button class="btn"    onclick="set('size',8,this)">8×8</button>
-      <button class="btn"    onclick="set('size',9,this)">9×9</button>
-      <button class="btn"    onclick="set('size',10,this)">10×10</button>
+      <button class="btn"    onclick="setSize(3,3,this)">3×3</button>
+      <button class="btn"    onclick="setSize(3,4,this)">3×4</button>
+      <button class="btn"    onclick="setSize(4,4,this)">4×4</button>
+      <button class="btn on" onclick="setSize(5,5,this)">5×5</button>
+      <button class="btn"    onclick="setSize(6,6,this)">6×6</button>
+      <button class="btn"    onclick="setSize(7,7,this)">7×7</button>
+      <button class="btn"    onclick="setSize(8,8,this)">8×8</button>
+      <button class="btn"    onclick="setSize(9,9,this)">9×9</button>
+      <button class="btn"    onclick="setSize(10,10,this)">10×10</button>
     </div>
 
     <div class="lbl">⭐ レベル</div>
     <div class="grp" id="gLevel">
-      <button class="btn on" onclick="set('level','easy',this)">かんたん（1〜5）</button>
-      <button class="btn"    onclick="set('level','normal',this)">ふつう（1〜9）</button>
-      <button class="btn"    onclick="set('level','hard',this)">むずかしい（2〜20）</button>
+      <button class="btn on" onclick="set('level','easy',this)">かんたん</button>
+      <button class="btn"    onclick="set('level','normal',this)">ふつう</button>
+      <button class="btn"    onclick="set('level','hard',this)">むずかしい</button>
     </div>
 
     <div class="lbl">🔣 けいさんの しゅるい</div>
@@ -223,8 +224,8 @@
 </div><!-- /app -->
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
-const S  = { size: 5, level: 'easy', op: 'add' };
-const GR = { gSize:'size', gLevel:'level', gOp:'op' };
+const S  = { rows: 5, cols: 5, level: 'easy', op: 'add' };
+const GR = { gLevel:'level', gOp:'op' };
 let rowN = [], colN = [], showAns = false;
 
 const SYM  = { add:'＋', sub:'−', mul:'×', div:'÷' };
@@ -233,12 +234,9 @@ const NAME = { add:'たし算', sub:'ひき算', mul:'かけ算', div:'わり算
 const LV = {
   easy:   { min:1, max:5 },
   normal: { min:1, max:9 },
-  hard:   { min:2, max:20 },
+  hard:   { min:1, max:20 },
 };
 
-// For ÷: divisor candidates whose LCM stays manageable
-const DIV_POOL = { easy:[1,2,3], normal:[2,3,4,6], hard:[2,3,4,6] };
-const DIV_RMAX = { easy:30, normal:72, hard:180 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const ri  = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
@@ -246,9 +244,14 @@ const gcd = (a, b)   => b ? gcd(b, a % b) : a;
 const lcm2 = (a, b)  => a / gcd(a, b) * b;
 const lcmA = arr     => arr.reduce(lcm2, 1);
 
+function setSize(r, c, btn) {
+  S.rows = r; S.cols = c;
+  document.getElementById('gSize').querySelectorAll('.btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
 function set(key, val, btn) {
   S[key] = val;
-  // Find the group that owns this key and clear .on
   const groupId = Object.keys(GR).find(id => GR[id] === key);
   document.getElementById(groupId).querySelectorAll('.btn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
@@ -256,31 +259,29 @@ function set(key, val, btn) {
 
 // ── Number generation ─────────────────────────────────────────────────────────
 function genNums() {
-  const n = S.size;
+  const rn = S.rows, cn = S.cols;
   const { min, max } = LV[S.level];
 
   if (S.op === 'add' || S.op === 'mul') {
-    colN = Array.from({length:n}, () => ri(min, max));
-    rowN = Array.from({length:n}, () => ri(min, max));
+    colN = Array.from({length:cn}, () => ri(min, max));
+    rowN = Array.from({length:rn}, () => ri(min, max));
     return;
   }
 
   if (S.op === 'sub') {
-    // cols = subtrahends (small) → rows = minuends ≥ max(cols), no negatives
-    const subMax = Math.min(max, 9);
-    colN = Array.from({length:n}, () => ri(1, subMax));
-    const bigMin = Math.max(...colN);
-    rowN = Array.from({length:n}, () => ri(bigMin, max + bigMin));
+    // 答えがマイナスにならないよう 縦(ひかれる数) > 横(ひく数) を保証
+    const half = Math.floor(max / 2);
+    colN = Array.from({length:cn}, () => ri(min, half));
+    rowN = Array.from({length:rn}, () => ri(half + 1, max));
     return;
   }
 
-  // div: cols drawn from a curated pool → rows are multiples of their LCM
-  const pool = DIV_POOL[S.level];
-  colN = Array.from({length:n}, () => pool[ri(0, pool.length - 1)]);
+  // ÷ : 割り切れを保証するため、横(わる数)を小さく固定し縦(わられる数)をその倍数で生成
+  const divPool = { easy:[1,2,3], normal:[1,2,3,4,5], hard:[1,2,3,4,5,6,7,8,9] }[S.level];
+  colN = Array.from({length:cn}, () => divPool[ri(0, divPool.length - 1)]);
   const L    = lcmA([...new Set(colN)]);
-  const cap  = DIV_RMAX[S.level];
-  const mMax = Math.max(1, Math.floor(cap / L));
-  rowN = Array.from({length:n}, () => L * ri(1, mMax));
+  const mMax = Math.max(1, Math.floor((max * 4) / L));
+  rowN = Array.from({length:rn}, () => L * ri(1, mMax));
 }
 
 function cellVal(r, c) {
@@ -308,9 +309,9 @@ function mkTd(text, cls) {
 }
 
 function render() {
-  const n = S.size;
+  const rn = S.rows, cn = S.cols;
   document.getElementById('wsTitle').textContent =
-    `${NAME[S.op]}（${SYM[S.op]}）　${n}×${n} もんだい`;
+    `${NAME[S.op]}（${SYM[S.op]}）　${rn}×${cn} もんだい`;
 
   const tbl = document.getElementById('mg');
   tbl.innerHTML = '';
