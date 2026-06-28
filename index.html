@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マス計算メーカー 🔢</title>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'M PLUS Rounded 1c', 'Hiragino Maru Gothic Pro', sans-serif;
+      background: #FFF8F2;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .app { max-width: 900px; margin: 0 auto; }
+
+    /* ── Header ── */
+    .hd { text-align: center; color: white; padding: 20px 0 18px; background: #FF9800; border-radius: 20px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(255,152,0,.35); }
+    .hd h1 { font-size: 2rem; font-weight: 800; text-shadow: 1px 2px 4px rgba(0,0,0,.2); }
+    .hd p  { margin-top: 6px; font-size: 1rem; opacity: .9; }
+
+    /* ── Card ── */
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.13);
+    }
+
+    /* ── Labels ── */
+    .lbl {
+      font-size: .78rem;
+      font-weight: 800;
+      color: #9E9E9E;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    /* ── Button groups ── */
+    .grp { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+
+    .btn {
+      font-family: inherit;
+      font-weight: 700;
+      border: 2px solid #FFB74D;
+      border-radius: 50px;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: .9rem;
+      background: white;
+      color: #E65100;
+      transition: transform .12s, box-shadow .12s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,152,0,.25); }
+    .btn.on   { background: #FF9800; color: white; border-color: #FF9800; box-shadow: 0 4px 14px rgba(255,152,0,.4); }
+
+    /* ── Generate button ── */
+    .btn-go-wrap {
+      background: #FFFDE7;
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 8px;
+    }
+    .btn-go {
+      width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 800;
+      border: none; border-radius: 50px; cursor: pointer; font-family: inherit;
+      background: #FF9800;
+      color: white; box-shadow: 0 6px 22px rgba(255,152,0,.45);
+      transition: transform .12s, box-shadow .12s;
+    }
+    .btn-go:hover  { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(255,152,0,.55); background: #FB8C00; }
+    .btn-go:active { transform: translateY(0); }
+
+    /* ── Grid scroll wrapper ── */
+    .scroll { overflow-x: auto; }
+
+    /* ── Print / capture area ── */
+    #printArea {
+      background: white;
+      padding: 28px 28px 22px;
+      display: inline-block;
+      min-width: 100%;
+    }
+
+    .ws-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .ws-title { font-size: 1.25rem; font-weight: 800; color: #2d2d2d; }
+
+    .ws-fields { display: flex; gap: 20px; font-size: .88rem; color: #444; }
+    .ws-fields span { display: flex; align-items: flex-end; gap: 6px; }
+    .ws-fields b {
+      display: inline-block;
+      min-width: 110px;
+      border-bottom: 1.5px solid #888;
+      padding-bottom: 2px;
+    }
+
+    /* ── Math grid ── */
+    .mg { border-collapse: collapse; }
+    .mg td {
+      width: 54px; height: 54px;
+      border: 2px solid #333;
+      text-align: center; vertical-align: middle;
+      font-size: 1.35rem; font-weight: 700;
+    }
+
+    .c-op  { background: #FFFDE7; color: #222; font-size: 1.5rem; font-weight: 900; }
+    .c-col { background: #F5F5F5; color: #111; border-color: #555; }
+    .c-row { background: #F5F5F5; color: #111; border-color: #555; }
+    .c-ans { background: white;   color: #222; }
+    .c-bk  { background: #FFFFFF; color: transparent; }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center; padding: 52px 20px;
+      color: #BDBDBD; font-size: 1rem; line-height: 2;
+    }
+
+    /* ── Grid action buttons ── */
+    .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .btn-a {
+      flex: 1; min-width: 120px; padding: 12px;
+      border: none; border-radius: 50px; cursor: pointer;
+      font-family: inherit; font-weight: 700; font-size: .95rem;
+      transition: transform .12s, box-shadow .12s;
+    }
+    .btn-a:hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(255,152,0,.4); }
+    .btn-toggle { background: #FF9800; color: white; }
+    .btn-dl     { background: #FF9800; color: white; }
+    .btn-share  { background: #FF9800; color: white; }
+
+    /* ── Print (direct) ── */
+    @media print {
+      body { background: none; padding: 0; }
+      .ctrl-card, .acts { display: none !important; }
+      .card { box-shadow: none; border-radius: 0; }
+      #printArea { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hd">
+    <h1>🔢 マス計算メーカー</h1>
+    <p>たのしい けいさん もんだいを つくろう！</p>
+  </header>
+
+  <!-- ── Controls ── -->
+  <div class="card ctrl-card">
+    <div class="lbl">📐 マスの かず</div>
+    <div class="grp" id="gSize">
+      <button class="btn"    onclick="set('size',3,this)">3×3</button>
+      <button class="btn"    onclick="set('size',4,this)">4×4</button>
+      <button class="btn on" onclick="set('size',5,this)">5×5</button>
+      <button class="btn"    onclick="set('size',6,this)">6×6</button>
+      <button class="btn"    onclick="set('size',7,this)">7×7</button>
+      <button class="btn"    onclick="set('size',8,this)">8×8</button>
+      <button class="btn"    onclick="set('size',9,this)">9×9</button>
+      <button class="btn"    onclick="set('size',10,this)">10×10</button>
+    </div>
+
+    <div class="lbl">⭐ レベル</div>
+    <div class="grp" id="gLevel">
+      <button class="btn on" onclick="set('level','easy',this)">かんたん（1〜5）</button>
+      <button class="btn"    onclick="set('level','normal',this)">ふつう（1〜9）</button>
+      <button class="btn"    onclick="set('level','hard',this)">むずかしい（2〜20）</button>
+    </div>
+
+    <div class="lbl">🔣 けいさんの しゅるい</div>
+    <div class="grp" id="gOp">
+      <button class="btn on" onclick="set('op','add',this)">たし算 ＋</button>
+      <button class="btn"    onclick="set('op','sub',this)">ひき算 −</button>
+      <button class="btn"    onclick="set('op','mul',this)">かけ算 ×</button>
+      <button class="btn"    onclick="set('op','div',this)">わり算 ÷</button>
+    </div>
+
+    <div class="btn-go-wrap">
+      <button class="btn-go" onclick="generate()">🎲 あたらしい もんだいを つくる！</button>
+    </div>
+  </div>
+
+  <!-- ── Grid ── -->
+  <div class="card">
+    <div class="scroll">
+      <div id="printArea">
+        <div class="empty" id="emptyMsg">
+          ⬆️ うえの ボタンを おして<br>もんだいを つくってね！<br>🌈✨
+        </div>
+        <div id="sheet" style="display:none">
+          <div class="ws-header">
+            <div class="ws-title" id="wsTitle"></div>
+            <div class="ws-fields">
+              <span>なまえ<b></b></span>
+              <span>日にち<b style="min-width:90px"></b></span>
+            </div>
+          </div>
+          <table class="mg" id="mg"></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="acts" id="acts" style="display:none">
+      <button class="btn-a btn-toggle" id="btnToggle" onclick="toggleAns()">👁️ こたえを みる</button>
+      <button class="btn-a btn-dl"     onclick="dlImg()">📥 がぞうを ほぞん</button>
+      <button class="btn-a btn-share"  id="btnShare" onclick="shareImg()" style="display:none">📱 アルバムに ほぞん</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const S  = { size: 5, level: 'easy', op: 'add' };
+const GR = { gSize:'size', gLevel:'level', gOp:'op' };
+let rowN = [], colN = [], showAns = false;
+
+const SYM  = { add:'＋', sub:'−', mul:'×', div:'÷' };
+const NAME = { add:'たし算', sub:'ひき算', mul:'かけ算', div:'わり算' };
+
+const LV = {
+  easy:   { min:1, max:5 },
+  normal: { min:1, max:9 },
+  hard:   { min:2, max:20 },
+};
+
+// For ÷: divisor candidates whose LCM stays manageable
+const DIV_POOL = { easy:[1,2,3], normal:[2,3,4,6], hard:[2,3,4,6] };
+const DIV_RMAX = { easy:30, normal:72, hard:180 };
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const ri  = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
+const gcd = (a, b)   => b ? gcd(b, a % b) : a;
+const lcm2 = (a, b)  => a / gcd(a, b) * b;
+const lcmA = arr     => arr.reduce(lcm2, 1);
+
+function set(key, val, btn) {
+  S[key] = val;
+  // Find the group that owns this key and clear .on
+  const groupId = Object.keys(GR).find(id => GR[id] === key);
+  document.getElementById(groupId).querySelectorAll('.btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+// ── Number generation ─────────────────────────────────────────────────────────
+function genNums() {
+  const n = S.size;
+  const { min, max } = LV[S.level];
+
+  if (S.op === 'add' || S.op === 'mul') {
+    colN = Array.from({length:n}, () => ri(min, max));
+    rowN = Array.from({length:n}, () => ri(min, max));
+    return;
+  }
+
+  if (S.op === 'sub') {
+    // cols = subtrahends (small) → rows = minuends ≥ max(cols), no negatives
+    const subMax = Math.min(max, 9);
+    colN = Array.from({length:n}, () => ri(1, subMax));
+    const bigMin = Math.max(...colN);
+    rowN = Array.from({length:n}, () => ri(bigMin, max + bigMin));
+    return;
+  }
+
+  // div: cols drawn from a curated pool → rows are multiples of their LCM
+  const pool = DIV_POOL[S.level];
+  colN = Array.from({length:n}, () => pool[ri(0, pool.length - 1)]);
+  const L    = lcmA([...new Set(colN)]);
+  const cap  = DIV_RMAX[S.level];
+  const mMax = Math.max(1, Math.floor(cap / L));
+  rowN = Array.from({length:n}, () => L * ri(1, mMax));
+}
+
+function cellVal(r, c) {
+  switch (S.op) {
+    case 'add': return rowN[r] + colN[c];
+    case 'sub': return rowN[r] - colN[c];
+    case 'mul': return rowN[r] * colN[c];
+    case 'div': return rowN[r] / colN[c] | 0;
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function generate() {
+  genNums();
+  showAns = false;
+  document.getElementById('btnToggle').textContent = '👁️ こたえを みる';
+  render();
+}
+
+function mkTd(text, cls) {
+  const td = document.createElement('td');
+  td.className = cls;
+  td.textContent = text;
+  return td;
+}
+
+function render() {
+  const n = S.size;
+  document.getElementById('wsTitle').textContent =
+    `${NAME[S.op]}（${SYM[S.op]}）　${n}×${n} もんだい`;
+
+  const tbl = document.getElementById('mg');
+  tbl.innerHTML = '';
+
+  // Header row
+  const hr = tbl.insertRow();
+  hr.appendChild(mkTd(SYM[S.op], 'c-op'));
+  colN.forEach(v => hr.appendChild(mkTd(v, 'c-col')));
+
+  // Data rows
+  rowN.forEach((rv, r) => {
+    const tr = tbl.insertRow();
+    tr.appendChild(mkTd(rv, 'c-row'));
+    colN.forEach((_, c) => {
+      const td = mkTd(cellVal(r, c), showAns ? 'c-ans' : 'c-bk');
+      tr.appendChild(td);
+    });
+  });
+
+  document.getElementById('emptyMsg').style.display = 'none';
+  document.getElementById('sheet').style.display    = '';
+  document.getElementById('acts').style.display     = 'flex';
+
+  // Show share button only when Web Share API supports files
+  const probe = new File([''], 't.png', {type:'image/png'});
+  document.getElementById('btnShare').style.display =
+    (navigator.canShare?.({files:[probe]})) ? '' : 'none';
+}
+
+// ── Answer toggle ─────────────────────────────────────────────────────────────
+function toggleAns() {
+  showAns = !showAns;
+  document.querySelectorAll('#mg .c-ans, #mg .c-bk').forEach(td => {
+    td.className = showAns ? 'c-ans' : 'c-bk';
+  });
+  document.getElementById('btnToggle').textContent =
+    showAns ? '🙈 こたえを かくす' : '👁️ こたえを みる';
+}
+
+// ── Capture → canvas ──────────────────────────────────────────────────────────
+async function capture() {
+  const el = document.getElementById('printArea');
+  return html2canvas(el, {
+    backgroundColor: '#ffffff',
+    scale: 2.5,
+    useCORS: true,
+    width:  el.scrollWidth,
+    height: el.scrollHeight,
+    windowWidth:  el.scrollWidth,
+    windowHeight: el.scrollHeight,
+  });
+}
+
+// ── Download ─────────────────────────────────────────────────────────────────
+async function dlImg() {
+  const canvas = await capture();
+  const a = document.createElement('a');
+  a.href     = canvas.toDataURL('image/png');
+  a.download = 'マス計算もんだい.png';
+  a.click();
+}
+
+// ── Share (album save on mobile) ─────────────────────────────────────────────
+async function shareImg() {
+  try {
+    const canvas = await capture();
+    canvas.toBlob(async blob => {
+      const file = new File([blob], 'マス計算もんだい.png', {type:'image/png'});
+      await navigator.share({ title:'マス計算もんだい', files:[file] });
+    }, 'image/png');
+  } catch {
+    dlImg(); // fallback
+  }
+}
+</script>
+</body>
+</html>
