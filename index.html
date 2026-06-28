@@ -120,8 +120,30 @@
     .c-op  { background: #FFFDE7; color: #222; font-size: 1.5rem; font-weight: 900; }
     .c-col { background: #F5F5F5; color: #111; border-color: #555; }
     .c-row { background: #F5F5F5; color: #111; border-color: #555; }
-    .c-ans { background: white;   color: #222; }
-    .c-bk  { background: #FFFFFF; color: transparent; }
+    .c-ans     { background: white;   color: #222; }
+    .c-bk      { background: #FFFFFF; }
+    .c-correct { background: #E8F5E9; border-color: #66BB6A; }
+    .c-wrong   { background: #FFEBEE; border-color: #EF5350; }
+
+    /* 入力フォーム */
+    .c-bk input, .c-correct input, .c-wrong input {
+      width: 100%; height: 100%;
+      border: none; background: transparent;
+      text-align: center; font-family: inherit;
+      font-size: 1.35rem; font-weight: 700;
+      outline: none; padding: 0;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    .c-bk input      { color: #333; }
+    .c-correct input  { color: #2E7D32; }
+    .c-wrong input    { color: #C62828; }
+    .c-bk input::-webkit-outer-spin-button,
+    .c-bk input::-webkit-inner-spin-button,
+    .c-correct input::-webkit-outer-spin-button,
+    .c-correct input::-webkit-inner-spin-button,
+    .c-wrong input::-webkit-outer-spin-button,
+    .c-wrong input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
     /* ── Empty state ── */
     .empty {
@@ -216,6 +238,7 @@
 
     <div class="acts" id="acts" style="display:none">
       <button class="btn-a btn-toggle" id="btnToggle" onclick="toggleAns()">👁️ こたえを みる</button>
+      <button class="btn-a btn-toggle" onclick="checkAnswers()">⭕ こたえあわせ</button>
       <button class="btn-a btn-dl"     onclick="dlImg()">📥 がぞうを ほぞん</button>
       <button class="btn-a btn-share"  id="btnShare" onclick="shareImg()" style="display:none">📱 アルバムに ほぞん</button>
     </div>
@@ -326,8 +349,18 @@ function render() {
     const tr = tbl.insertRow();
     tr.appendChild(mkTd(rv, 'c-row'));
     colN.forEach((_, c) => {
-      const td = mkTd(cellVal(r, c), showAns ? 'c-ans' : 'c-bk');
-      tr.appendChild(td);
+      const val = cellVal(r, c);
+      if (showAns) {
+        tr.appendChild(mkTd(val, 'c-ans'));
+      } else {
+        const td = document.createElement('td');
+        td.className = 'c-bk';
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.dataset.ans = val;
+        td.appendChild(inp);
+        tr.appendChild(td);
+      }
     });
   });
 
@@ -344,11 +377,28 @@ function render() {
 // ── Answer toggle ─────────────────────────────────────────────────────────────
 function toggleAns() {
   showAns = !showAns;
-  document.querySelectorAll('#mg .c-ans, #mg .c-bk').forEach(td => {
-    td.className = showAns ? 'c-ans' : 'c-bk';
-  });
+  if (showAns) {
+    // 入力欄をすべて正解テキストに置き換え
+    document.querySelectorAll('#mg input[data-ans]').forEach(inp => {
+      const td = inp.parentElement;
+      td.className = 'c-ans';
+      td.textContent = inp.dataset.ans;
+    });
+  } else {
+    // 再描画して入力欄を復元
+    render();
+  }
   document.getElementById('btnToggle').textContent =
     showAns ? '🙈 こたえを かくす' : '👁️ こたえを みる';
+}
+
+// ── Answer check ──────────────────────────────────────────────────────────────
+function checkAnswers() {
+  document.querySelectorAll('#mg input[data-ans]').forEach(inp => {
+    const td = inp.parentElement;
+    if (inp.value === '') { td.className = 'c-bk'; return; }
+    td.className = parseInt(inp.value) === parseInt(inp.dataset.ans) ? 'c-correct' : 'c-wrong';
+  });
 }
 
 // ── Capture → canvas ──────────────────────────────────────────────────────────
